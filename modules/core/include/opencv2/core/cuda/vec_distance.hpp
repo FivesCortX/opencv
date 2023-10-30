@@ -104,7 +104,7 @@ namespace cv { namespace cuda { namespace device
         float mySum;
     };
 
-    struct L2Dist
+    template <typename T> struct L2Dist
     {
         typedef float value_type;
         typedef float result_type;
@@ -128,6 +128,32 @@ namespace cv { namespace cuda { namespace device
         }
 
         float mySum;
+    };
+
+    template <> struct L2Dist<unsigned char>
+    {
+        typedef unsigned char value_type;
+        typedef float result_type;
+
+        __device__ __forceinline__ L2Dist() : mySum(0) {}
+
+        __device__ __forceinline__ void reduceIter(unsigned char val1, unsigned char val2)
+        {
+            short reg = val1 - val2;
+            mySum += reg * reg;
+        }
+
+        template <int THREAD_DIM> __device__ __forceinline__ void reduceAll(int* smem, int tid)
+        {
+            reduce<THREAD_DIM>(smem, mySum, tid, plus<int>());
+        }
+
+        __device__ __forceinline__ operator float() const
+        {
+            return sqrtf(mySum);
+        }
+
+        int mySum;
     };
 
     struct HammingDist
